@@ -94,7 +94,7 @@ def evaluate(loader, return_trajectory=False):
     else:
         L = loader
 
-    mse_loss, mae_loss, eval_count = 0, 0, 0
+    rmse_loss, mae_loss, eval_count = 0, 0, 0
     matching_list, stability_list, ligand_collision_list, binding_collision_list = [], [], [], []
 
     for batch_idx, batch in enumerate(L):
@@ -119,7 +119,7 @@ def evaluate(loader, return_trajectory=False):
             pos_pred = (pos_input + pos_delta).clone()
             trajectory_pred.append(pos_pred.cpu())
 
-            mse_loss = mse_loss + torch.sum((pos_pred - pos_target).pow(2).sum(dim=1).sqrt()).cpu().item()
+            rmse_loss = rmse_loss + torch.sum((pos_pred - pos_target).pow(2).sum(dim=1).sqrt()).cpu().item()
             mae_loss = mae_loss + torch.sum(torch.abs(pos_pred - pos_target)).cpu().item()
 
             eval_count += pos_pred.shape[0]
@@ -145,7 +145,7 @@ def evaluate(loader, return_trajectory=False):
 
 
     mae_loss = mae_loss / eval_count
-    mse_loss = mse_loss / eval_count
+    rmse_loss = rmse_loss / eval_count
     matching = np.mean(matching_list)
     stability = np.mean(stability_list)
     ligand_collision = np.mean(ligand_collision_list)
@@ -155,9 +155,9 @@ def evaluate(loader, return_trajectory=False):
     total_time = time.time() - start_time
     FPS = total_frame_count / total_time
     if not return_trajectory:
-        return mae_loss, mse_loss, matching, stability, ligand_collision, binding_collision, FPS
+        return mae_loss, rmse_loss, matching, stability, ligand_collision, binding_collision, FPS
     else:
-        return mae_loss, mse_loss, matching, stability, ligand_collision, binding_collision, FPS, \
+        return mae_loss, rmse_loss, matching, stability, ligand_collision, binding_collision, FPS, \
             ligand_trajectory_target_list, ligand_trajectory_pred_list, ligand_atom_list, protein_target_list, mask_n, mask_ca, mask_c
 
 
@@ -256,7 +256,7 @@ if __name__ == "__main__":
         print("Apply lr scheduler ReduceLROnPlateau")
 
     train_mae_list, test_mae_list = [], []
-    train_mse_list, test_mse_list = [], []
+    train_rmse_list, test_rmse_list = [], []
     train_matching_list, test_matching_list = [], []
     train_stability_list, test_stability_list = [], []
     train_ligand_collision_list, test_ligand_collision_list = [], []
@@ -265,9 +265,9 @@ if __name__ == "__main__":
     best_train_mae, best_train_idx = 1e10, 0
 
     print("Initial")
-    test_mae, test_mse, test_matching, test_stability, test_ligand_collision, test_binding_collision, FPS = evaluate(loader)
+    test_mae, test_rmse, test_matching, test_stability, test_ligand_collision, test_binding_collision, FPS = evaluate(loader)
     print("MAE test: {:.5f}".format(test_mae))
-    print("MSE test: {:.5f}".format(test_mse))
+    print("RMSE test: {:.5f}".format(test_rmse))
     print("Matching test: {:.5f}".format(test_matching))
     print("Stability test: {:.5f}".format(test_stability))
     print("Ligand collision test: {:.5f}".format(test_ligand_collision))
@@ -280,20 +280,20 @@ if __name__ == "__main__":
 
         if e % args.print_every_epoch == 0:
             if args.eval_train:
-                train_mae, train_mse, train_matching, train_stability, train_ligand_collision, train_binding_collision, _ = evaluate(loader)
+                train_mae, train_rmse, train_matching, train_stability, train_ligand_collision, train_binding_collision, _ = evaluate(loader)
             else:
-                train_mae, train_mse, train_matching, train_stability, train_ligand_collision, train_binding_collision = 0, 0, 0, 0, 0
-            test_mae, test_mse, test_matching, test_stability, test_ligand_collision, test_binding_collision, _, \
+                train_mae, train_rmse, train_matching, train_stability, train_ligand_collision, train_binding_collision = 0, 0, 0, 0, 0
+            test_mae, test_rmse, test_matching, test_stability, test_ligand_collision, test_binding_collision, _, \
                 ligand_trajectory_target_list, ligand_trajectory_pred_list, ligand_atom_list, protein_target_list, mask_n, mask_ca, mask_c = evaluate(loader, return_trajectory=True)
 
             train_mae_list.append(train_mae)
-            train_mse_list.append(train_mse)
+            train_rmse_list.append(train_rmse)
             train_matching_list.append(train_matching)
             train_stability_list.append(train_stability)
             train_ligand_collision_list.append(train_ligand_collision)
             train_binding_collision_list.append(train_binding_collision)
             test_mae_list.append(test_mae)
-            test_mse_list.append(test_mse)
+            test_rmse_list.append(test_rmse)
             test_matching_list.append(test_matching)
             test_stability_list.append(test_stability)
             test_ligand_collision_list.append(test_ligand_collision)
@@ -306,7 +306,7 @@ if __name__ == "__main__":
                 save_model(save_best=True)
 
             print("MAE train: {:.5f}\t\ttest: {:.5f}".format(train_mae, test_mae))
-            print("MSE train: {:.5f}\t\ttest: {:.5f}".format(train_mse, test_mse))
+            print("RMSE train: {:.5f}\t\ttest: {:.5f}".format(train_rmse, test_rmse))
             print("Matching train: {:.5f}\t\ttest: {:.5f}".format(train_matching, test_matching))
             print("Stability train: {:.5f}\t\ttest: {:.5f}".format(train_stability, test_stability))
             print("Ligand collision train: {:.5f}\t\ttest: {:.5f}".format(train_ligand_collision, test_ligand_collision))
@@ -316,8 +316,8 @@ if __name__ == "__main__":
     print("best MAE train: {:.6f}\ttest: {:.6f}".format(
         train_mae_list[best_train_idx], test_mae_list[best_train_idx],
     ))
-    print("best MSE train: {:.6f}\ttest: {:.6f}".format(
-        train_mse_list[best_train_idx], test_mse_list[best_train_idx],
+    print("best RMSE train: {:.6f}\ttest: {:.6f}".format(
+        train_rmse_list[best_train_idx], test_rmse_list[best_train_idx],
     ))
     print("best Matching train: {:.6f}\ttest: {:.6f}".format(
         train_matching_list[best_train_idx], test_matching_list[best_train_idx],
