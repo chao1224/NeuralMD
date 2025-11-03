@@ -100,7 +100,7 @@ def evaluate(loader):
     else:
         L = loader
 
-    mse_loss, mae_loss, eval_count = 0, 0, 0
+    rmse_loss, mae_loss, eval_count = 0, 0, 0
     matching_list, stability_list, ligand_collision_list, binding_collision_list = [], [], [], []
 
     for batch_idx, batch in enumerate(L):
@@ -124,7 +124,7 @@ def evaluate(loader):
             pos_pred = (pos_input + pos_delta).clone()
 
             trajectory_pred.append(pos_pred.cpu())
-            mse_loss = mse_loss + torch.sum((pos_pred - pos_target).pow(2).sum(dim=1).sqrt()).cpu().item()
+            rmse_loss = rmse_loss + torch.sum((pos_pred - pos_target).pow(2).sum(dim=1).sqrt()).cpu().item()
             mae_loss = mae_loss + torch.sum(torch.abs(pos_pred - pos_target)).cpu().item()
             eval_count += pos_pred.shape[0]
 
@@ -144,7 +144,7 @@ def evaluate(loader):
 
 
     mae_loss = mae_loss / eval_count
-    mse_loss = mse_loss / eval_count
+    rmse_loss = rmse_loss / eval_count
     matching = np.mean(matching_list)
     stability = np.mean(stability_list)
     ligand_collision = np.mean(ligand_collision_list)
@@ -153,7 +153,7 @@ def evaluate(loader):
     total_frame_count = 99 * len(matching_list)
     total_time = time.time() - start_time
     FPS = total_frame_count / total_time
-    return mae_loss, mse_loss, matching, stability, ligand_collision, binding_collision, FPS
+    return mae_loss, rmse_loss, matching, stability, ligand_collision, binding_collision, FPS
 
 
 if __name__ == "__main__":
@@ -265,7 +265,7 @@ if __name__ == "__main__":
         print("Apply lr scheduler ReduceLROnPlateau")
 
     train_mae_list, val_mae_list, test_mae_list = [], [], []
-    train_mse_list, val_mse_list, test_mse_list = [], [], []
+    train_rmse_list, val_rmse_list, test_rmse_list = [], [], []
     train_matching_list, val_matching_list, test_matching_list = [], [], []
     train_stability_list, val_stability_list, test_stability_list = [], [], []
     train_ligand_collision_list, val_ligand_collision_list, test_ligand_collision_list = [], [], []
@@ -273,10 +273,10 @@ if __name__ == "__main__":
     best_val_mae, best_val_idx = 1e10, 0
 
     print("Initial")
-    val_mae, val_mse, val_matching, val_stability, val_ligand_collision, val_binding_collision, _ = evaluate(val_loader)
-    test_mae, test_mse, test_matching, test_stability, test_ligand_collision, test_binding_collision, FPS = evaluate(test_loader)
+    val_mae, val_rmse, val_matching, val_stability, val_ligand_collision, val_binding_collision, _ = evaluate(val_loader)
+    test_mae, test_rmse, test_matching, test_stability, test_ligand_collision, test_binding_collision, FPS = evaluate(test_loader)
     print("MAE val: {:.5f}\t\ttest: {:.5f}".format(val_mae, test_mae))
-    print("MSE val: {:.5f}\t\ttest: {:.5f}".format(val_mse, test_mse))
+    print("MSE val: {:.5f}\t\ttest: {:.5f}".format(val_rmse, test_rmse))
     print("hr MAE val: {:.5f}\t\ttest: {:.5f}".format(val_matching, test_matching))
     print("Stability val: {:.5f}\t\ttest: {:.5f}".format(val_stability, test_stability))
     print("Ligand collision val: {:.5f}\t\ttest: {:.5f}".format(val_ligand_collision, test_ligand_collision))
@@ -290,26 +290,26 @@ if __name__ == "__main__":
 
         if e % args.print_every_epoch == 0:
             if args.eval_train:
-                train_mae, train_mse, train_matching, train_stability, train_ligand_collision, train_binding_collision, _ = evaluate(train_loader)
+                train_mae, train_rmse, train_matching, train_stability, train_ligand_collision, train_binding_collision, _ = evaluate(train_loader)
             else:
-                train_mae, train_mse, train_matching, train_stability, train_ligand_collision, train_binding_collision = 0, 0, 0, 0, 0, 0
-            val_mae, val_mse, val_matching, val_stability, val_ligand_collision, val_binding_collision, _ = evaluate(val_loader)
-            test_mae, test_mse, test_matching, test_stability, test_ligand_collision, test_binding_collision, _ = evaluate(test_loader)
+                train_mae, train_rmse, train_matching, train_stability, train_ligand_collision, train_binding_collision = 0, 0, 0, 0, 0, 0
+            val_mae, val_rmse, val_matching, val_stability, val_ligand_collision, val_binding_collision, _ = evaluate(val_loader)
+            test_mae, test_rmse, test_matching, test_stability, test_ligand_collision, test_binding_collision, _ = evaluate(test_loader)
 
             train_mae_list.append(train_mae)
-            train_mse_list.append(train_mse)
+            train_rmse_list.append(train_rmse)
             train_matching_list.append(train_matching)
             train_stability_list.append(train_stability)
             train_ligand_collision_list.append(train_ligand_collision)
             train_binding_collision_list.append(train_binding_collision)
             val_mae_list.append(val_mae)
-            val_mse_list.append(val_mse)
+            val_rmse_list.append(val_rmse)
             val_matching_list.append(val_matching)
             val_stability_list.append(val_stability)
             val_ligand_collision_list.append(val_ligand_collision)
             val_binding_collision_list.append(val_binding_collision)
             test_mae_list.append(test_mae)
-            test_mse_list.append(test_mse)
+            test_rmse_list.append(test_rmse)
             test_matching_list.append(test_matching)
             test_stability_list.append(test_stability)
             test_ligand_collision_list.append(test_ligand_collision)
@@ -321,7 +321,7 @@ if __name__ == "__main__":
                 save_model(save_best=True)
 
             print("MAE train: {:.5f}\t\tval: {:.5f}\t\ttest: {:.5f}".format(train_mae, val_mae, test_mae))
-            print("MSE train: {:.5f}\t\tval: {:.5f}\t\ttest: {:.5f}".format(train_mse, val_mse, test_mse))
+            print("RMSE train: {:.5f}\t\tval: {:.5f}\t\ttest: {:.5f}".format(train_rmse, val_rmse, test_rmse))
             print("hr MAE train: {:.5f}\t\tval: {:.5f}\t\ttest: {:.5f}".format(train_matching, val_matching, test_matching))
             print("Stability train:{:.5f}\t\tval: {:.5f}\t\ttest: {:.5f}".format(train_stability, val_stability, test_stability))
             print("Ligand collision train:{:.5f}\t\tval: {:.5f}\t\ttest: {:.5f}".format(train_ligand_collision, val_ligand_collision, test_ligand_collision))
@@ -331,8 +331,8 @@ if __name__ == "__main__":
     print("best MAE train: {:.6f}\tval: {:.6f}\ttest: {:.6f}".format(
         train_mae_list[best_val_idx], val_mae_list[best_val_idx], test_mae_list[best_val_idx],
     ))
-    print("best MSE train: {:.6f}\tval: {:.6f}\ttest: {:.6f}".format(
-        train_mse_list[best_val_idx], val_mse_list[best_val_idx], test_mse_list[best_val_idx],
+    print("best RMSE train: {:.6f}\tval: {:.6f}\ttest: {:.6f}".format(
+        train_rmse_list[best_val_idx], val_rmse_list[best_val_idx], test_rmse_list[best_val_idx],
     ))
     print("best hr MAE train: {:.6f}\tval: {:.6f}\ttest: {:.6f}".format(
         train_matching_list[best_val_idx], val_matching_list[best_val_idx], test_matching_list[best_val_idx],
